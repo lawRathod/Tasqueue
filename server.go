@@ -60,6 +60,17 @@ type TaskInfo struct {
 	Concurrency uint32 `json:"concurrency" msgpack:"concurrency"`
 }
 
+// Clock abstracts time for deterministic simulation.
+// Implementations can map to real time or DES simulation time.
+type Clock interface {
+	Now() time.Time
+}
+
+// realClock uses wall-clock time. This is the default.
+type realClock struct{}
+
+func (realClock) Now() time.Time { return time.Now() }
+
 type TaskOpts struct {
 	Concurrency  uint32
 	Queue        string
@@ -113,6 +124,7 @@ type Server struct {
 	log       *slog.Logger
 	broker    Broker
 	results   Results
+	clock     Clock
 	cron      *cron.Cron
 	traceProv *trace.TracerProvider
 
@@ -129,6 +141,9 @@ type ServerOpts struct {
 	Results       Results
 	Logger        slog.Handler
 	TraceProvider *trace.TracerProvider
+	// Clock provides time for job deadlines and metadata.
+	// If nil, real wall-clock time is used.
+	Clock Clock
 }
 
 // NewServer() returns a new instance of server, with sane defaults.
@@ -142,6 +157,9 @@ func NewServer(o ServerOpts) (*Server, error) {
 	if o.Logger == nil {
 		o.Logger = slog.Default().Handler()
 	}
+	if o.Clock == nil {
+		o.Clock = realClock{}
+	}
 
 	return &Server{
 		traceProv:   o.TraceProvider,
@@ -149,6 +167,7 @@ func NewServer(o ServerOpts) (*Server, error) {
 		cron:        cron.New(),
 		broker:      o.Broker,
 		results:     o.Results,
+		clock:       o.Clock,
 		tasks:       make(map[string]Task),
 		defaultConc: runtime.GOMAXPROCS(0),
 		queues:      make(map[string]uint32),
@@ -367,7 +386,7 @@ func (s *Server) execJob(ctx context.Context, msg JobMessage, task Task) error {
 	// If there is a deadline given, set that on jctx and not ctx
 	// because we don't want to cancel the entire context in case deadline exceeded.
 	if !(msg.Job.Opts.Timeout == 0) {
-		jctx, cancelFunc = context.WithDeadline(ctx, time.Now().Add(msg.Job.Opts.Timeout))
+		jctx, cancelFunc = context.WithDeadline(ctx, s.clock.Now().Add(msg.Job.Opts.Timeout))
 	}
 
 	// Set jctx as the context for the task.
@@ -538,7 +557,7 @@ func (s *Server) statusStarted(ctx context.Context, t JobMessage) error {
 		defer span.End()
 	}
 
-	t.ProcessedAt = time.Now()
+	t.ProcessedAt = s.clock.Now()
 	t.Status = StatusStarted
 
 	if err := s.setJobMessage(ctx, t); err != nil {
@@ -556,7 +575,7 @@ func (s *Server) statusProcessing(ctx context.Context, t JobMessage) error {
 		defer span.End()
 	}
 
-	t.ProcessedAt = time.Now()
+	t.ProcessedAt = s.clock.Now()
 	t.Status = StatusProcessing
 
 	if err := s.setJobMessage(ctx, t); err != nil {
@@ -574,7 +593,7 @@ func (s *Server) statusDone(ctx context.Context, t JobMessage) error {
 		defer span.End()
 	}
 
-	t.ProcessedAt = time.Now()
+	t.ProcessedAt = s.clock.Now()
 	t.Status = StatusDone
 
 	if err := s.results.SetSuccess(ctx, t.ID); err != nil {
@@ -596,7 +615,7 @@ func (s *Server) statusFailed(ctx context.Context, t JobMessage) error {
 		defer span.End()
 	}
 
-	t.ProcessedAt = time.Now()
+	t.ProcessedAt = s.clock.Now()
 	t.Status = StatusFailed
 
 	if err := s.results.SetFailed(ctx, t.ID); err != nil {
@@ -618,7 +637,7 @@ func (s *Server) statusRetrying(ctx context.Context, t JobMessage) error {
 		defer span.End()
 	}
 
-	t.ProcessedAt = time.Now()
+	t.ProcessedAt = s.clock.Now()
 	t.Status = StatusRetrying
 
 	if err := s.setJobMessage(ctx, t); err != nil {
