@@ -9,10 +9,10 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/kalbhor/tasqueue/v2"
-	nats_broker "github.com/kalbhor/tasqueue/v2/brokers/nats-js"
-	"github.com/kalbhor/tasqueue/v2/examples/tasks"
-	nats_result "github.com/kalbhor/tasqueue/v2/results/nats-js"
+	"github.com/lawRathod/tasqueue"
+	nats_broker "github.com/lawRathod/tasqueue/brokers/nats-js"
+	"github.com/lawRathod/tasqueue/examples/tasks"
+	nats_result "github.com/lawRathod/tasqueue/results/nats-js"
 )
 
 func main() {

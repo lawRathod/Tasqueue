@@ -10,10 +10,10 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/kalbhor/tasqueue/v2"
-	rb "github.com/kalbhor/tasqueue/v2/brokers/redis"
-	"github.com/kalbhor/tasqueue/v2/examples/tasks"
-	rr "github.com/kalbhor/tasqueue/v2/results/redis"
+	"github.com/lawRathod/tasqueue"
+	rb "github.com/lawRathod/tasqueue/brokers/redis"
+	"github.com/lawRathod/tasqueue/examples/tasks"
+	rr "github.com/lawRathod/tasqueue/results/redis"
 )
 
 func main() {

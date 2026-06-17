@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	rb "github.com/kalbhor/tasqueue/v2/brokers/in-memory"
-	rr "github.com/kalbhor/tasqueue/v2/results/in-memory"
+	rb "github.com/lawRathod/tasqueue/brokers/in-memory"
+	rr "github.com/lawRathod/tasqueue/results/in-memory"
 )
 
 const (

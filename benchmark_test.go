@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/go-redis/redis"
-	rb "github.com/kalbhor/tasqueue/v2/brokers/redis"
-	rr "github.com/kalbhor/tasqueue/v2/results/redis"
+	rb "github.com/lawRathod/tasqueue/brokers/redis"
+	rr "github.com/lawRathod/tasqueue/results/redis"
 )
 
 // The benchmarks use redis as results & broker.
