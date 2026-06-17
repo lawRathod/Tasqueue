@@ -1,4 +1,4 @@
-module github.com/kalbhor/tasqueue/v2
+module github.com/lawRathod/tasqueue/v2
 
 go 1.21
 
