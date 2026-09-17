@@ -13,7 +13,7 @@ import (
 type Broker struct {
 	opt  Options
 	log  *slog.Logger
-	conn nats.JetStreamContext
+	conn Conn
 }
 
 type Options struct {
@@ -24,6 +24,26 @@ type Options struct {
 
 	// Stream -> Subjects map
 	Streams map[string][]string
+}
+
+// Conn is the minimal subset of nats.JetStreamContext the broker uses:
+// Publish (Enqueue) and Subscribe (Consume). It exists so a deterministic,
+// no-network implementation can be injected for simulation testing. The
+// production path is unchanged — New still builds a real JetStreamContext.
+type Conn interface {
+	Publish(subj string, data []byte, opts ...nats.PubOpt) (*nats.PubAck, error)
+	Subscribe(subj string, cb nats.MsgHandler, opts ...nats.SubOpt) (*nats.Subscription, error)
+}
+
+// Compile-time assertion that the real JetStream context satisfies Conn.
+var _ Conn = (nats.JetStreamContext)(nil)
+
+// NewWithConn returns a Broker that publishes and subscribes through c
+// instead of dialing NATS. It skips nats.Connect and stream creation, so
+// Options.Streams is ignored — the caller owns stream setup. Intended for
+// deterministic simulation harnesses.
+func NewWithConn(cfg Options, c Conn, lo *slog.Logger) *Broker {
+	return &Broker{opt: cfg, conn: c, log: lo}
 }
 
 // New() returns a new instance of nats-jetstream broker.
