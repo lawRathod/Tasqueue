@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 	"log/slog"
+	"net"
 	"strconv"
 	"time"
 
@@ -41,6 +42,12 @@ type Options struct {
 	MetaExpiry   time.Duration
 	MinIdleConns int
 
+	// Dialer, when non-nil, is used to create every connection the client
+	// opens. go-redis already exposes this on its UniversalOptions; surfacing
+	// it here lets a caller on a simulated transport inject its own dialer
+	// without forking the client. Nil means go-redis' own net.Dialer.
+	Dialer func(ctx context.Context, network, addr string) (net.Conn, error)
+
 	// OPTIONAL
 	// If non-zero, enqueue redis commands will be piped instead of being directly sent each time.
 	// The pipe will be executed every `PipePeriod` duration.
@@ -68,6 +75,7 @@ func New(o Options, lo *slog.Logger) *Results {
 				WriteTimeout: o.WriteTimeout,
 				IdleTimeout:  o.IdleTimeout,
 				MinIdleConns: o.MinIdleConns,
+				Dialer:       o.Dialer,
 			},
 		),
 		lo: lo,
@@ -84,6 +92,11 @@ func New(o Options, lo *slog.Logger) *Results {
 
 	return rs
 }
+
+// Close releases the client's connections. go-redis starts a connection-pool
+// reaper goroutine per client that exits only on Close, so a caller that owns
+// the results' lifecycle must call this or leak one goroutine per client.
+func (r *Results) Close() error { return r.conn.Close() }
 
 func (r *Results) execPipe(ctx context.Context) {
 	tk := time.NewTicker(r.opts.PipePeriod)
